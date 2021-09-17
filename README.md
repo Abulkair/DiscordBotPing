@@ -1,0 +1,2 @@
+# DiscordBotPing
+python bot.py

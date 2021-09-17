@@ -7,6 +7,7 @@ from discord.ext import commands
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+STEP = 20
 
 class CustomHelpCommand(commands.HelpCommand):
     def __init__(self, **options):
@@ -30,24 +31,21 @@ async def on_member_join(member):
     await member.dm_channel.send(f'Hi {member.name}, welcome to my Discord server!')
     print(f'User {member.name} connected to the channel')
 
-    with open('users.json', 'r') as f:
-        users = json.load(f)
-
-    await update_date(users, member)
-
-    with open('users.json', 'w') as f:
-        json.dump(users, f)
-
 @client.event
 async def on_member_remove(member):
     print(f'User {member.name} left channel')
 
+def jsonKeys2int(x):
+    if isinstance(x, dict):
+            return {(int(k) if k.isnumeric() else k):v for k,v in x.items()}
+    return x
+
 @client.event
 async def on_message(message):
     await client.process_commands(message)
-
+    
     with open('users.json', 'r') as f:
-        users = json.load(f)
+        users = json.load(f, object_hook=jsonKeys2int)
 
     await update_data(users, message.author)
     await add_experience(users, message.author, 1)
@@ -56,7 +54,6 @@ async def on_message(message):
     with open('users.json', 'w') as f:
         json.dump(users, f) 
 
-
 async def update_data(users, user):
     if not user.id in users:
         users[user.id] = {}
@@ -64,12 +61,16 @@ async def update_data(users, user):
         users[user.id]['level'] = 1
 
 async def add_experience(users, user, exp):
-    users[user.id]['experience'] += 1
+    users[user.id]['experience'] += exp
 
-async def add_experience(users, user, channel):
+async def level_up(users, user, channel):
     experience = users[user.id]['experience']
-    lvl_start = users[user.id]['level']
-    lvl_end = int(experience ** (1/4))
+    level = users[user.id]['level']
+
+    if int(experience) % STEP == 0:
+        level += 1
+        await channel.send('{} has leveled up to {}'.format(user.mention, level))
+        users[user.id]['level'] = level
 
 @client.command(pass_context=True)
 async def ping(ctx):
